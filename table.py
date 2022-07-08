@@ -25,7 +25,7 @@ args = vars(ap.parse_args())
 np.random.seed(42)
 # load the input image and convert it to grayscale
 image = cv2.imread(args["image"])
-gray = cv2.cvtColor(color, cv2.COLOR_RGB2GRAY)
+gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
 # initialize a rectangular kernel that is ~5x wider than it is tall,
 # then smooth the image using a 3x3 Gaussian blur and then apply a
 # blackhat morphological operator to find dark regions on a light
@@ -53,10 +53,13 @@ cv2.imshow("Thresh", thresh)
 cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
 	cv2.CHAIN_APPROX_SIMPLE)
 cnts = imutils.grab_contours(cnts)
+
+
 tableCnt = max(cnts, key=cv2.contourArea)
 # compute the bounding box coordinates of the stats table and extract
 # the table from the input image
 (x, y, w, h) = cv2.boundingRect(tableCnt)
+
 table = image[y:y + h, x:x + w]
 # show the original input image and extracted table to our screen
 cv2.imshow("Input", image)
@@ -98,8 +101,10 @@ clustering = AgglomerativeClustering(
 	n_clusters=None,
 	affinity="manhattan",
 	linkage="complete",
+
 	distance_threshold=args["dist_thresh"])
 clustering.fit(xCoords)
+
 # initialize our list of sorted clusters
 sortedClusters = []
 # loop over all clusters
@@ -107,6 +112,8 @@ for l in np.unique(clustering.labels_):
 	# extract the indexes for the coordinates belonging to the
 	# current cluster
 	idxs = np.where(clustering.labels_ == l)[0]
+	
+
 	# verify that the cluster is sufficiently large
 	if len(idxs) > args["min_size"]:
 		# compute the average x-coordinate value of the cluster and
@@ -114,6 +121,8 @@ for l in np.unique(clustering.labels_):
 		# average x-coordinate
 		avg = np.average([coords[i][0] for i in idxs])
 		sortedClusters.append((l, avg))
+		
+
 # sort the clusters by their average x-coordinate and initialize our
 # data frame
 sortedClusters.sort(key=lambda x: x[1])
@@ -130,6 +139,7 @@ for (l, _) in sortedClusters:
 	# generate a random color for the cluster
 	color = np.random.randint(0, 255, size=(3,), dtype="int")
 	color = [int(c) for c in color]
+	
 # loop over the sorted indexes
 	for i in sortedIdxs:
 		# extract the text bounding box coordinates and draw the
@@ -140,18 +150,25 @@ for (l, _) in sortedClusters:
 	# a data frame for the data where the first entry in our column
 	# serves as the header
 	cols = [ocrText[i].strip() for i in sortedIdxs]
+	
 	currentDF = pd.DataFrame({cols[0]: cols[1:]})
 	# concatenate *original* data frame with the *current* data
 	# frame (we do this to handle columns that may have a varying
 	# number of rows)
+	
 	df = pd.concat([df, currentDF], axis=1)
-    # replace NaN values with an empty string and then show a nicely
+	
+	 # replace NaN values with an empty string and then show a nicely
 # formatted version of our multi-column OCR'd text
 df.fillna("", inplace=True)
+
 print(tabulate(df, headers="keys", tablefmt="psql"))
+
 # write our table to disk as a CSV file
 print("[INFO] saving CSV file to disk...")
 df.to_csv(args["output"], index=False)
 # show the output image after performing multi-column OCR
 cv2.imshow("Output", image)
 cv2.waitKey(0)
+cv2.destroyAllWindows()
+ 
